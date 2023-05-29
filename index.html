@@ -117,6 +117,7 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
         <br> Booking Time <span id="bookingtime"></span>
         <br> Estimated Time To Arrive DropOff <span id="arrivaltime"></span>
         <br> Estimated Captain Arrival Charge <span id="captainArrivalCharge"></span> Rs
+        <br> Estimated Time For Captain To Arrive At Pickup Locaztion <span id="captainArrivalTime"></span>
         <br> Car Type <span id="vehicleType"></span>
         <br> Per KM <span id="perKM"></span> Rs
         <br> Per Min <span id="perMin"></span> Rs
@@ -587,10 +588,10 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
 
 
 
-                        var distance = response.routes[0].legs[0].distance.text;
-                        distance = distance.replace("km", " ");
-                        var duration = response.routes[0].legs[0].duration.text;
-                        duration = duration.replace("mins", " ");
+                        var distance = response.routes[0].legs[0].distance.value / 1000;
+                        distance = parseFloat(distance);
+                        var duration = response.routes[0].legs[0].duration.value / 60;
+                        duration = parseFloat(duration);
                         /*  var durationintraffic = response.routes[0].legs[0].duration_in_traffic.text;
                           durationintraffic = durationintraffic.replace("mins", " ");
                           durationintraffic = parseInt(durationintraffic);*/
@@ -769,9 +770,11 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
 
                         captainArrivalCharge = parseFloat(driverArrivalDistanceRate) + parseFloat(driverArrivalDurationRate);
                         captainArrivalCharge = parseFloat(captainArrivalCharge.toFixed(2));
+                        if (captainArrivalCharge > 200) {
+                            captainArrivalCharge = parseFloat(200);
+                        }
 
-
-
+                        document.getElementById("captainArrivalTime").innerText = driverArrivalDuration + " mins";
                         document.getElementById("captainArrivalCharge").innerText = captainArrivalCharge;
                         minutesCovered = duration;
                         minuteRate = duration * perMin;
@@ -800,13 +803,13 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
 
                         // Add 1 hour and 10 minutes
 
-                        arrivalTime.setMinutes(arrivalTime.getMinutes() + timeToArrival);
+                        arrivalTime.setMinutes(arrivalTime.getMinutes() + timeToArrival + parseInt(driverArrivalDuration));
                         arrivalTime = arrivalTime.toLocaleString("en-NZ", {
 
                             hour: "numeric",
                             minute: "numeric"
                         });
-
+                        console.log(`arrival Time ${ arrivalTime}`);
                         arrivalDated = arrivalTime.toLocaleString("en-NZ", {
                             month: "long",
                             day: "numeric",
