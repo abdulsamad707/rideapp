@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ride Information</title>
+</head>
+
+<style>
+    html,
+    body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
+    #map {
+        height: 50%;
+    }
+</style>
+
+<body>
+    <div id="map"></div>
+
+    <div id="ride_detail">
+        <p>Car Detail <span id="car_detail"></span></p>
+        <p>Car Number Plate <span id="car_number_plate"></span></p>
+        <p>Car Color <span id="car_color"></span></p>
+        <p>Driver Mobile Number <span id="driver_mobile"></span></p>
+        <p>Driver Name <span id="driver_name"></span></p>
+        <p>Estimated Fare <span id="estimatedFare"></span> PKR</p>
+        <p> Pickup Location <span id="pickup_loc"></span> </p>
+        <p> DropOff Location <span id="dropOff_loc"></span> </p>
+    </div>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg
+    &callback=RideINFO&libraries=places&v=weekly" defer></script>
+    <script>
+        async function RideINFO() {
+            ride_id = localStorage.getItem("ride_id");
+            console.log("rideId" + ride_id);
+
+            apilink = "http://localhost:5000/ride_detail/" + ride_id;
+
+
+            responses = await fetch(apilink, {
+                method: "get"
+
+
+            });
+            ride_detail = await responses.json();
+
+
+            console.log(ride_detail);
+            pickuplocationlat = parseFloat(ride_detail[0].pickup_lat);
+            pickuplocationlong = parseFloat(ride_detail[0].pickup_long);
+            dropofflat = parseFloat(ride_detail[0].dropOfflat);
+            dropofflong = parseFloat(ride_detail[0].dropofflong);
+            driverlat = parseFloat(ride_detail[0].driverlat);
+            driverlong = parseFloat(ride_detail[0].driverlong);
+            document.getElementById("car_detail").innerText = ride_detail[0].car_detail;
+            document.getElementById("car_number_plate").innerText = ride_detail[0].number_plate;
+            document.getElementById("car_color").innerText = ride_detail[0].car_color;
+            document.getElementById("driver_name").innerText = ride_detail[0].driver_name;
+            document.getElementById("driver_mobile").innerText = ride_detail[0].driver_mobile;
+            document.getElementById("estimatedFare").innerText = ride_detail[0].estimatedFare;
+            document.getElementById("pickup_loc").innerText = ride_detail[0].pickup_loc;
+            document.getElementById("dropOff_loc").innerText = ride_detail[0].dropOff_loc;
+            carType = ride_detail[0].car_type_name;
+
+            if (carType === "go") {
+                carImage = "th.jpg";
+            } else {
+                carImage = "auto.jpg";
+            }
+
+            const svgMarker = {
+                path: "M-1.547 12l6.563-6.609-1.406-1.406-5.156 5.203-2.063-2.109-1.406 1.406zM0 0q2.906 0 4.945 2.039t2.039 4.945q0 1.453-0.727 3.328t-1.758 3.516-2.039 3.070-1.711 2.273l-0.75 0.797q-0.281-0.328-0.75-0.867t-1.688-2.156-2.133-3.141-1.664-3.445-0.75-3.375q0-2.906 2.039-4.945t4.945-2.039z",
+                fillColor: "blue",
+                fillOpacity: 0.6,
+                strokeWeight: 0,
+                rotation: 0,
+                scale: 2,
+                anchor: new google.maps.Point(0, 20),
+            };
+
+
+
+
+            mapcenter = {
+                lat: pickuplocationlat,
+                lng: pickuplocationlong
+            }
+
+            var image = {
+                url: carImage,
+                size: new google.maps.Size(80, 80),
+                origin: new google.maps.Point(0, 0),
+                anchor: new google.maps.Point(17, 34),
+                scaledSize: new google.maps.Size(30, 30),
+                color: "red",
+            };
+            const directionsServices = new google.maps.DirectionsService();
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: mapcenter,
+                zoom: 13,
+
+            });
+
+            async function re() {
+                ride_id = localStorage.getItem("ride_id");
+                console.log("rideId" + ride_id);
+
+                apilink = "http://localhost:5000/ride_detail/" + ride_id;
+
+
+                responses = await fetch(apilink, {
+                    method: "get"
+
+
+                });
+                driverlat = parseFloat(ride_detail[0].driverlat);
+                driverlong = parseFloat(ride_detail[0].driverlong);
+                requests = {
+
+
+                    origin: {
+                        lat: pickuplocationlat,
+                        lng: pickuplocationlong
+                    },
+                    destination: {
+                        lat: dropofflat,
+                        lng: dropofflong
+                    },
+                    avoidHighways: true,
+                    avoidTolls: true,
+                    provideRouteAlternatives: true,
+                    drivingOptions: {
+                        departureTime: new Date(),
+                        trafficModel: 'optimistic'
+                    },
+
+
+
+
+                    travelMode: google.maps.TravelMode.DRIVING
+
+                }
+
+                directionsServices
+                    .route(requests)
+                    .then((response) => {
+
+                        console.log(response);
+                        const directionsRenderers = new google.maps.DirectionsRenderer({
+                            map: map,
+                            directions: response,
+                            suppressMarkers: true
+                        });
+                        directionsRenderers.setMap(map);
+
+                        directionsRenderers.setDirections(response);
+
+
+                        markers = new google.maps.Marker({
+
+                            label: "P",
+                            map: map,
+                            position: {
+                                lat: response.routes[0].legs[0].start_location.lat(),
+
+                                lng: response.routes[0].legs[0].start_location.lng()
+                            }
+                        });
+
+
+                        marker = new google.maps.Marker({
+
+                            label: "D",
+
+                            map: map,
+                            position: {
+                                lat: response.routes[0].legs[0].end_location.lat(),
+
+                                lng: response.routes[0].legs[0].end_location.lng()
+                            }
+                        });
+
+                        const positions =
+
+                            [{
+                                    lat: driverlat,
+
+                                    lng: driverlong
+                                }, // San Francisco
+                                // New York
+                                // London
+                                {
+                                    lat: pickuplocationlat,
+                                    lng: pickuplocationlong
+                                }
+                            ];
+
+
+                        /*
+                        markers = new google.maps.Marker({
+                            map: map,
+
+
+                            position: {
+                                lat: driverlat,
+
+                                lng: driverlong
+                            }
+                        });*/
+                        function moveMarker() {
+                            marker = new google.maps.Marker({
+                                icon: image,
+
+                                map: map,
+
+                            });
+                            positionsl = [{
+                                    lat: driverlat,
+                                    lng: driverlong
+                                }, // San Francisco
+                                // New York
+                                {
+                                    lat: pickuplocationlat,
+                                    lng: pickuplocationlong
+                                }, // London
+                            ];
+                            let currentPosition = 0;
+                            currentPosition = (currentPosition + 1) % positionsl.length;
+                            marker.setPosition(positionsl[currentPosition]);
+                            console.log(marker);
+                        }
+
+
+
+                    });
+
+
+
+            }
+
+            re();
+
+        }
+    </script>
+
+</body>
+
+</html>

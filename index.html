@@ -1,0 +1,1374 @@
+<html>
+
+<head>
+    <title>Booking App</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg
+    &callback=initMap&libraries=places&v=weekly" defer></script>
+    <style>
+        #map {
+            height: 50%;
+        }
+        /* 
+ * Optional: Makes the sample page fill the window. 
+
+AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&callback
+AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg
+AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
+ */
+        
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        #pac-input {
+            width: 50%;
+        }
+        
+        #pac-input2 {
+            width: 25%;
+        }
+        
+        .popup-bubble {
+            /* Position the bubble centred-above its parent. */
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -100%);
+            /* Style the bubble. */
+            background-color: white;
+            padding: 5px;
+            border-radius: 5px;
+            font-family: sans-serif;
+            overflow-y: auto;
+            max-height: 60px;
+            box-shadow: 0px 2px 10px 1px rgba(0, 0, 0, 0.5);
+        }
+        /* The parent of the bubble. A zero-height div at the top of the tip. */
+        
+        .popup-bubble-anchor {
+            /* Position the div a fixed distance above the tip. */
+            position: absolute;
+            width: 100%;
+            bottom: 8px;
+            left: 0;
+        }
+        /* This element draws the tip. */
+        
+        .popup-bubble-anchor::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            /* Center the tip horizontally. */
+            transform: translate(-50%, 0);
+            /* The tip is a https://css-tricks.com/snippets/css/css-triangle/ */
+            width: 0;
+            height: 0;
+            /* The tip is 8px high, and 12px wide. */
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid white;
+        }
+        /* JavaScript will position this div at the bottom of the popup tip. */
+        
+        .popup-container {
+            cursor: auto;
+            height: 0;
+            position: absolute;
+            /* The max width of the info window. */
+            width: 200px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <h3>My Car App</h3>
+    <!--The div element for the map -->
+    <div id="pac-container">
+        <input id="pac-input" type="text" placeholder="Enter Dropoff location" />
+        <input id="pac-input2" type="text" placeholder="Enter Pickup location" />
+        <input type="datetime-local" name="" id="ridetime">
+        <span>
+            <input id="pac-input3" type="text" placeholder="Enter Stop location" />
+        </span>
+        <button id="fareEstimate">Estimate Fare</button>
+        <button id="reverse">Reverse Location</button>
+        <button id="addStop">Add A Stop</button>
+
+
+    </div>
+
+    <div id="map"></div>
+    <div id="distance">
+        <a href="https:www.google.com/maps/dir/?api=1&origin=24.9283,67.1111&destination=24.9455,67.1154&dir_action=navigate&travelmode=driving&layer=traffic
+            " target="_blank"><i class="fas fa-location-arrow"></i>Navigate</a><br> Distance Travelling For Ride <span id="distancesCovered"></span><br/> Minutes Consuming For Ride <span id="TimeCovered"></span>
+        <br> Estimated Total Fare <span id="fare"></span> Rs
+        <br> Estimated Distance Fare <span id="distanceRate"></span> Rs
+        <br> Estimated Time Fare <span id="timeRate"></span> Rs
+        <br> Base Fare <span id="baseRate"></span> Rs
+        <br> Pickup Address <span id="pickupadd"></span>
+        <br> Drop Off Address <span id="dropoffadd"></span>
+        <br> Booking Date <span id="bookingdate"></span>
+        <br> Booking Time <span id="bookingtime"></span>
+        <br> Estimated Time To Arrive DropOff <span id="arrivaltime"></span>
+        <br> Estimated Captain Arrival Charge <span id="captainArrivalCharge"></span> Rs
+        <br> Car Type <span id="vehicleType"></span>
+        <br> Per KM <span id="perKM"></span> Rs
+        <br> Per Min <span id="perMin"></span> Rs
+    </div>
+    <div>
+        select car type <select id="CarType">
+       <Option value="go" >Go</Option>
+       <Option value="gomini" >Go MIni</Option>
+       <Option value="minisaver" >MIni Saver</Option>
+       <Option value="delivery" >Delivery</Option>
+       <Option value="bike" >Bike </Option>
+       <Option value="auto" >Rickshaw</Option>
+       <option value="gopremium">Go Premium</option>
+       <option value="goplus">Go Plus</option>
+       <option value="gosaver">Go Saver</option>
+       <option value="coaster">Coaster</option>
+       <option value="cargo">Car Go</option>
+       <option value="hiroof">Hi Roof</option>
+       <option value="hiace">Hi Ace</option>
+    </select>
+    </div>
+    <!-- prettier-ignore -->
+    <div>
+        <form>
+            <input type="text" id="customerName" value="" placeholder="Customer Name">
+            <input type="text" id="customerNumber" value="" placeholder="Customer Mobile Number">
+
+            <input type="button" id="bookride" value="Book A Ride">
+        </form>
+    </div>
+    <script>
+        addStopbtn = document.getElementById("addStop");
+        addStopbtn.addEventListener("click", async() => {
+            const options = {
+                fields: ["formatted_address", "geometry", "name"],
+                componentRestrictions: {
+                    country: "pk",
+
+                },
+
+                types: ['establishment'],
+            };
+
+            const input = document.getElementById("pac-input3");
+            const autocomplete = new google.maps.places.Autocomplete(input, options);
+        });
+        reversebtn = document.getElementById("reverse");
+        reversebtn.addEventListener("click", async() => {
+            ridetime = document.getElementById("ridetime").value;
+
+            var startTime = new Date(); // Replace with your start time
+            var endTime = new Date(ridetime); // Replace with your end time
+            /*    new Date(year, month, day, hours, minutes, seconds, milliseconds);*/
+            console.log("Diff:" + endTime - startTime);
+
+
+            console.log("Start Time" + startTime);
+
+
+            console.log("Ride Time" + endTime);
+            timeDifference = endTime - startTime;
+            console.log("difference" + timeDifference);
+            var seconds = Math.floor(timeDifference / 1000);
+            var minutes = Math.floor(seconds / 60);
+
+            var hours = Math.ceil(minutes / 60);
+            var days = Math.ceil(hours / 24);
+
+            console.log(days + " days, " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
+            var pickuplocation = document.getElementById("pac-input2").value;
+            const dropofflocation = document.getElementById("pac-input").value;
+
+            document.getElementById("pac-input").value = pickuplocation;
+            document.getElementById("pac-input2").value = dropofflocation;
+        });
+        Bookbtn = document.getElementById("bookride");
+        Bookbtn.addEventListener("click", async() => {
+
+
+
+
+
+            CarType = document.getElementById("vehicleType").innerText;
+            bookingDate = document.getElementById("bookingdate").innerText;
+            bookingTime = document.getElementById("bookingtime").innerText;
+            var pickuploc = document.getElementById("pac-input2").value;
+            dropoffloc = document.getElementById("pac-input").value;
+            var customerName = document.getElementById("customerName").value;
+            customerNumber = document.getElementById("customerNumber").value;
+            const estimatedFare = document.getElementById("fare").innerText;
+            geocoder = new google.maps.Geocoder();
+            gecoderresult = await geocoder
+                .geocode({
+                    address: dropoffloc
+                });
+            gecoderresult2 = await geocoder
+                .geocode({
+                    address: pickuploc
+                });
+            console.log(gecoderresult);
+            console.log(gecoderresult2);
+            dropofflat = gecoderresult.results[0].geometry.location.lat();
+            dropofflong = gecoderresult.results[0].geometry.location.lng();
+            pickuplat = gecoderresult2.results[0].geometry.location.lat();
+            pickuplong = gecoderresult2.results[0].geometry.location.lng();
+
+            rideObject = {
+                dropOff: dropoffloc,
+                customerNumber: customerNumber,
+                customerName: customerName,
+                pickup: pickuploc,
+                pickuplat: pickuplat,
+                pickuplong: pickuplong,
+                bookingDate: bookingDate,
+                bookingTime: bookingTime,
+                CarType: CarType,
+                dropOfflat: dropofflat,
+                dropofflong: dropofflong,
+                estimatedFare: estimatedFare
+            }
+
+
+
+            rideObject = JSON.stringify(rideObject);
+
+            alert("Booking a ride");
+            apilink = "http://localhost:5000/bookride";
+            response = await fetch(apilink, {
+                method: "post",
+                body: rideObject,
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+
+
+            ride_detail = await response.json();
+
+
+            console.log(ride_detail);
+            ride_id = ride_detail.ride_id;
+            ride_token = ride_detail.token;
+            alert(ride_id);
+            if (ride_id != 0) {
+                localStorage.setItem("ride_id", ride_id);
+            }
+
+            if (ride_token != "") {
+                localStorage.setItem("ride_token", ride_token);
+
+            }
+
+
+        });
+
+        async function CarTypeRate(CarType) {
+            link = `  http://localhost:5000/cartype/${CarType}`;
+            responses = await fetch(link, {
+                method: "get"
+
+
+            });
+            car_type_detail = await responses.json();
+            dataObject = car_type_detail.data;
+            console.warn(dataObject);
+            carTypeObject = {
+                baseFare: dataObject[0].baseFare,
+                perKM: dataObject[0].perKM,
+                perMIn: dataObject[0].perMIn,
+
+
+            }
+            return carTypeObject;
+        }
+
+        async function Distance(requests) {
+            const service = new google.maps.DistanceMatrixService();
+
+            const directionsServices = new google.maps.DirectionsService();
+
+            results = await directionsServices.route(requests);
+            console.log("distance Function " + new Date());
+
+            console.log(results);
+
+
+            var distance = results.routes[0].legs[0].distance.value;
+
+            distance = distance / 1000;
+            distance = distance.toFixed(2);
+            var duration = results.routes[0].legs[0].duration.text;
+            duration = duration.replace("mins", " ");
+            duration = duration.replace("min", " ");
+            duration = duration.trim();
+            distanceObject = {
+                distance: distance,
+                duration: duration
+            }
+
+
+
+            return distanceObject;
+
+        }
+
+
+        fareEstimatebtn = document.getElementById("fareEstimate");
+        fareEstimatebtn.addEventListener("click", async() => {
+            currentDate = new Date();
+            currentDate = new Date();
+
+
+            ridetime = document.getElementById("ridetime").value;
+
+            ridetime = document.getElementById("ridetime").value;
+            if (ridetime != "") {
+                // Replace with your end time
+                /*    new Date(year, month, day, hours, minutes, seconds, milliseconds);*/
+                console.log("Diff:" + endTime - startTime);
+
+
+                console.log("Start Time" + startTime);
+
+                var arrTime = new Date(ridetime);
+                var currentDate = new Date(ridetime);
+                console.log("Ride Time" + endTime);
+                var startTime = new Date(); // Replace with your start time
+                var endTime = new Date(ridetime);
+                timeDifference = endTime - startTime;
+                console.log("difference" + timeDifference);
+                var seconds = Math.floor(timeDifference / 1000);
+                var minutes = Math.floor(seconds / 60) + 1;
+
+                var hours = Math.ceil(minutes / 60);
+                var days = Math.ceil(hours / 24);
+            } else {
+                timeDifference = 0;
+                console.log("difference" + timeDifference);
+                var seconds = Math.floor(timeDifference / 1000);
+                var minutes = 0;
+
+                var hours = Math.ceil(minutes / 60);
+                var days = 0;
+
+            }
+
+            console.log(days + " days, " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds");
+
+            // Calculate remaining time
+
+
+
+
+            alert(currentDate);
+            currentDate = currentDate.toLocaleString("en-NZ", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "numeric"
+            });
+
+
+
+            var latitude = 24.9283;
+            var longitude = 67.1111;
+            const maps = new google.maps.Map(document.getElementById("map"), {
+                center: {
+                    lat: latitude,
+                    lng: longitude
+                },
+                zoom: 13,
+                mapTypeControl: false,
+            });
+
+
+
+            var CarType = document.getElementById("CarType").value;
+            alert(CarType);
+            var pickup = document.getElementById("pac-input2").value;
+            const drop = document.getElementById("pac-input").value;
+            const stop = document.getElementById("pac-input3").value;
+            console.log("pickup location" + pickup);
+            console.log("dropoff location" + drop);
+
+
+            geocoder = new google.maps.Geocoder();
+            gecoderresult = await geocoder
+                .geocode({
+                    address: drop
+                });
+            dropofflat = gecoderresult.results[0].geometry.location.lat();
+            dropofflong = gecoderresult.results[0].geometry.location.lng();
+            geocoder2 = new google.maps.Geocoder();
+            gecoderresult2 = await geocoder2
+                .geocode({
+                    address: pickup
+                });
+            if (pickup != drop) {
+                pickuplat = gecoderresult2.results[0].geometry.location.lat();
+                pickuplong = gecoderresult2.results[0].geometry.location.lng();
+                const service = new google.maps.DistanceMatrixService();
+
+                const directionsServices = new google.maps.DirectionsService();
+
+                if (stop != "") {
+
+                    requests = {
+
+
+                        origin: {
+                            lat: pickuplat,
+                            lng: pickuplong
+                        },
+                        destination: {
+                            lat: dropofflat,
+                            lng: dropofflong
+                        },
+                        avoidHighways: true,
+                        avoidTolls: true,
+                        provideRouteAlternatives: true,
+
+                        drivingOptions: {
+                            departureTime: new Date(),
+                            trafficModel: 'optimistic'
+                        },
+
+
+
+
+                        travelMode: google.maps.TravelMode.DRIVING
+
+                    };
+                } else {
+                    requests = {
+
+
+                        origin: {
+                            lat: pickuplat,
+                            lng: pickuplong
+                        },
+                        destination: {
+                            lat: dropofflat,
+                            lng: dropofflong
+                        },
+                        avoidHighways: true,
+                        avoidTolls: true,
+                        provideRouteAlternatives: true,
+                        drivingOptions: {
+                            departureTime: new Date(),
+                            trafficModel: 'optimistic'
+                        },
+
+
+
+
+                        travelMode: google.maps.TravelMode.DRIVING
+
+                    }
+                }
+                /*
+                                origin: {
+                                        lat: pickuplat,
+                                        lng: pickuplong
+                                    },
+                             
+                                    avoidHighways: true,
+                                    avoidTolls: true,
+                                    provideRouteAlternatives: true,
+
+
+                                    drivingOptions: {
+                                        departureTime: new Date(),
+                                        trafficModel: 'optimistic'
+                                    },
+
+
+
+
+                                    travelMode: google.maps.TravelMode.DRIVING,
+                                }
+                */
+
+                directionsServices
+                    .route(requests)
+                    .then(async(response) => {
+
+
+                        const directionsRenderers = new google.maps.DirectionsRenderer({
+                            map: map,
+                            directions: response,
+                            suppressMarkers: true
+                        });
+                        directionsRenderers.setMap(maps);
+
+                        marker = new google.maps.Marker({
+
+                            label: "P",
+                            map: maps,
+                            position: {
+                                lat: response.routes[0].legs[0].start_location.lat(),
+
+                                lng: response.routes[0].legs[0].start_location.lng()
+                            }
+                        });
+                        console.warn(response.routes[0].legs[0].via_waypoints);
+
+                        if (response.routes[0].legs[0].via_waypoint == null) {
+                            alert("Pak zindabad");
+                        }
+                        console.log(response.routes[0].legs[0]);
+
+                        /*
+                         console.warn(response.routes[0].legs[0].via_waypoint[0].location.lat());
+                         marker = new google.maps.Marker({
+
+                             label: "S",
+                             map: maps,
+                             position: {
+                                 lat: response.routes[0].legs[0].via_waypoint[0].location.lat(),
+
+                                 lng: response.routes[0].legs[0].via_waypoint[0].location.lat()
+                             }
+                         });
+
+                         */
+
+                        marker = new google.maps.Marker({
+
+                            label: "D",
+                            map: maps,
+                            position: {
+                                lat: response.routes[0].legs[0].end_location.lat(),
+
+                                lng: response.routes[0].legs[0].end_location.lng()
+                            }
+                        });
+
+
+                        directionsRenderers.setDirections(response);
+                        console.warn(response);
+                        var arrTime = new Date();
+                        var currentDate = new Date();
+
+                        currentDates = currentDate.toLocaleString("en-NZ", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "numeric"
+                        });
+
+                        currentDates = currentDates.split("at");
+
+                        currentDate = currentDates[0];
+                        currentTime = currentDates[1];
+                        var CarType = document.getElementById("CarType").value;
+
+                        document.getElementById("vehicleType").innerText = CarType;
+                        document.getElementById("bookingdate").innerText = currentDate;
+                        document.getElementById("bookingtime").innerText = currentTime;
+
+
+
+
+
+
+
+
+
+                        var distance = response.routes[0].legs[0].distance.text;
+                        distance = distance.replace("km", " ");
+                        var duration = response.routes[0].legs[0].duration.text;
+                        duration = duration.replace("mins", " ");
+                        /*  var durationintraffic = response.routes[0].legs[0].duration_in_traffic.text;
+                          durationintraffic = durationintraffic.replace("mins", " ");
+                          durationintraffic = parseInt(durationintraffic);*/
+                        console.log("directionApidistance:" + distance);
+                        durationintraffic = 0;
+
+
+                        duration = parseInt(duration);
+                        duration = duration + durationintraffic;
+
+                        console.log("directionApiduration:" + response.routes[0].legs[0].duration.value);
+
+                        arrTime.setTime(arrTime.getTime() + (duration * 60 * 1000));
+
+                        // Output the updated time
+                        console.log(arrivalTime);
+
+
+                        console.log(arrivalTime);
+                        currentDates = currentDate.toLocaleString("en-NZ", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "numeric"
+                        });
+
+
+                        console.log("estimated time for arrival at dropoff" + currentDate);
+                        arrivalDate = currentDate.toLocaleString("en-NZ", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "numeric"
+                        });
+
+                        document.getElementById("distancesCovered").innerText = response.routes[0].legs[0].distance.text;
+                        document.getElementById("TimeCovered").innerText = duration + " mins";
+                        arrivalDate = arrivalDate.split("at");
+                        arrivalDates = arrivalDate[0];
+                        arrivalTime = arrivalDate[1];
+                        dataDetail = await CarTypeRate(CarType);
+                        console.log("detail");
+                        console.log(dataDetail);
+                        baseFare = dataDetail.baseFare;
+                        alert(baseFare);
+                        perMin = dataDetail.perMIn;
+                        perKM = dataDetail.perKM;
+                        gst = 0;
+
+
+
+                        link = `  http://localhost:5000/driverdistancemin/${CarType}`;
+                        responses = await fetch(link, {
+                            method: "get"
+
+
+                        });
+                        driverarrivallat = await responses.json();
+                        console.log("captia");
+                        console.log(driverarrivallat);
+
+
+                        console.log(driverarrivallat.data[0].driverlat);
+                        console.log(driverarrivallat.data[0].driverlat);
+
+                        captainlat = parseFloat(driverarrivallat.data[0].driverlat);
+                        captainlong = parseFloat(driverarrivallat.data[0].driverlong);
+
+                        console.log("DR");
+                        console.log(dataDetail);
+
+                        requests = {
+
+
+                            origin: {
+                                lat: captainlat,
+                                lng: captainlong
+                            },
+                            destination: {
+                                lat: pickuplat,
+                                lng: pickuplong
+                            },
+                            avoidHighways: true,
+                            avoidTolls: true,
+                            provideRouteAlternatives: true,
+                            drivingOptions: {
+                                departureTime: new Date(),
+                                trafficModel: 'optimistic'
+                            },
+
+
+
+
+                            travelMode: google.maps.TravelMode.DRIVING
+
+                        }
+
+
+                        driverDistance = await Distance(requests);
+                        console.log(driverDistance);
+                        /*   if (CarType == "delivery") {
+              
+                        } else if (CarType == "go") {
+                            baseFare = 150.68;
+                            perMin = 11.46;
+                            perKM = 25.55;
+                            gst = 10;
+                        } else if (CarType == "gomini") {
+                            baseFare = 122.24;
+                            perMin = 9.3;
+                            perKM = 20.73;
+                            gst = 10;
+                        } else if (CarType == "auto") {
+                            baseFare = 48.81;
+                            perMin = 6.04;
+                            perKM = 22.45;
+                            gst = 10;
+                        } else if (CarType == "bike") {
+                            baseFare = 35.05;
+                            perMin = 1.57;
+                            perKM = 12.08;
+                            gst = 10;
+                        } else if (CarType == "gopremium") {
+
+
+                            baseFare = 700;
+                            perMin = 4.58;
+                            perKM = 30;
+                            gst = 10;
+
+                        } else if (CarType == "goplus") {
+
+                            baseFare = 250.68;
+                            perMin = 21.46;
+                            perKM = 35.55;
+                            gst = 10;
+
+                        } else if (CarType == "gosaver") {
+                            baseFare = 120.68;
+                            perMin = 9.46;
+                            perKM = 22.55;
+                            gst = 10;
+                        } else if (CarType == "minisaver") {
+                            baseFare = 90.68;
+                            perMin = 7.46;
+                            perKM = 18.55;
+                            gst = 10;
+                        } else if (CarType == "cargo") {
+                            baseFare = 200.68;
+                            perMin = 17.46;
+                            perKM = 38.55;
+                            gst = 10;
+                        } else if (CarType == "coaster") {
+                            baseFare = 1300.68;
+                            perMin = 55.46;
+                            perKM = 430.55;
+                            gst = 10;
+                        } else if (CarType == "hiace") {
+                            baseFare = 1000.68;
+                            perMin = 50.46;
+                            perKM = 360.55;
+                            gst = 10;
+                        } else if (CarType == "hiroof") {
+                            baseFare = 930.68;
+                            perMin = 50.46;
+                            perKM = 250.55;
+                            gst = 10;
+                        }*/
+                        driverArrivalDistance = driverDistance.distance;
+                        driverArrivalDistanceRate = driverArrivalDistance * parseFloat(perKM - Math.ceil((25 / 100) * perKM));
+                        driverArrivalDuration = driverDistance.duration;
+                        driverArrivalDurationRate = driverArrivalDuration * parseFloat(perMin - Math.ceil((25 / 100) * perMin));
+
+
+                        captainArrivalCharge = parseFloat(driverArrivalDistanceRate) + parseFloat(driverArrivalDurationRate);
+                        captainArrivalCharge = parseFloat(captainArrivalCharge.toFixed(2));
+
+
+
+                        document.getElementById("captainArrivalCharge").innerText = captainArrivalCharge;
+                        minutesCovered = duration;
+                        minuteRate = duration * perMin;
+                        distanceCovered = distance;
+                        distanceRate = distanceCovered * perKM;
+                        document.getElementById("dropoffadd").innerText = drop;
+                        document.getElementById("pickupadd").innerText = pickup;
+                        alert(distanceRate);
+                        document.getElementById("perKM").innerText = perKM;
+                        document.getElementById("perMin").innerText = perMin;
+                        fares = baseFare + distanceRate + minuteRate + captainArrivalCharge;
+                        gst = (gst / 100) * fares;
+                        fares = gst + fares;
+                        fares = Math.round(fares);
+                        minuteRate = minuteRate.toFixed(2);
+                        document.getElementById("timeRate").innerText = minuteRate;
+                        document.getElementById("fare").innerText = fares;
+                        document.getElementById("baseRate").innerText = baseFare;
+                        document.getElementById("distanceRate").innerText = distanceRate.toFixed(2);
+
+                        timeToArrival = response.routes[0].legs[0].duration.value / 60;
+                        timeToArrival.toFixed(2);
+
+                        timeToArrival = duration;
+                        var arrivalTime = new Date();
+
+                        // Add 1 hour and 10 minutes
+
+                        arrivalTime.setMinutes(arrivalTime.getMinutes() + timeToArrival);
+                        arrivalTime = arrivalTime.toLocaleString("en-NZ", {
+
+                            hour: "numeric",
+                            minute: "numeric"
+                        });
+
+                        arrivalDated = arrivalTime.toLocaleString("en-NZ", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+
+                        });
+                        console.log("Arrival Date" + arrivalDated);
+
+                        document.getElementById("arrivaltime").innerText = arrivalTime;
+                        console.warn(response);
+                    })
+                    .catch((e) => window.alert("Directions request failed due to " + e));
+
+                const origin1 = {
+
+                    lat: pickuplat,
+                    lng: pickuplong
+                };
+
+
+                const destinationB = {
+                    lat: dropofflat,
+                    lng: dropofflong
+
+                };
+                const request = {
+                    origins: [origin1],
+                    destinations: [destinationB],
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    unitSystem: google.maps.UnitSystem.METRIC,
+                    avoidHighways: true,
+                    avoidTolls: true,
+                };
+
+                /*
+                                service.getDistanceMatrix(request).then((response) => {
+
+
+
+                                    console.log(response);
+
+
+
+                                    if (CarType == "delivery") {
+                                        baseFare = 88.86;
+                                        perMin = 1.63;
+                                        perKM = 12.03;
+                                        gst = 10;
+                                    } else if (CarType == "go") {
+                                        baseFare = 150.68;
+                                        perMin = 11.46;
+                                        perKM = 25.55;
+                                        gst = 10;
+                                    } else if (CarType == "gomini") {
+                                        baseFare = 122.24;
+                                        perMin = 9.3;
+                                        perKM = 20.73;
+                                        gst = 10;
+                                    } else if (CarType == "auto") {
+                                        baseFare = 48.81;
+                                        perMin = 6.04;
+                                        perKM = 22.45;
+                                        gst = 10;
+                                    } else if (CarType == "bike") {
+                                        baseFare = 35.05;
+                                        perMin = 1.57;
+                                        perKM = 12.08;
+                                        gst = 10;
+                                    } else if (CarType == "gopremium") {
+                                        if (hours >= 2) {
+                                            baseFare = 750;
+                                            perMin = 6.58;
+                                            perKM = 32;
+                                            gst = 10;
+                                        } else {
+                                            baseFare = 700;
+                                            perMin = 4.58;
+                                            perKM = 30;
+                                            gst = 10;
+                                        }
+                                    } else if (CarType == "goplus") {
+
+                                        baseFare = 250.68;
+                                        perMin = 21.46;
+                                        perKM = 35.55;
+                                        gst = 10;
+
+                                    } else if (CarType == "gosaver") {
+                                        baseFare = 120.68;
+                                        perMin = 9.46;
+                                        perKM = 22.55;
+                                        gst = 10;
+                                    } else if (CarType == "minisaver") {
+                                        baseFare = 90.68;
+                                        perMin = 7.46;
+                                        perKM = 18.55;
+                                        gst = 10;
+                                    } else if (CarType == "cargo") {
+                                        baseFare = 200.68;
+                                        perMin = 17.46;
+                                        perKM = 38.55;
+                                        gst = 10;
+                                    } else if (CarType == "coaster") {
+                                        baseFare = 1300.68;
+                                        perMin = 55.46;
+                                        perKM = 430.55;
+                                        gst = 10;
+                                    } else if (CarType == "hiace") {
+                                        baseFare = 1000.68;
+                                        perMin = 50.46;
+                                        perKM = 360.55;
+                                        gst = 10;
+                                    } else if (CarType == "hiroof") {
+                                        baseFare = 930.68;
+                                        perMin = 50.46;
+                                        perKM = 250.55;
+                                        gst = 10;
+                                    }
+
+
+                                    var arrTime = new Date();
+                                    var currentDates = new Date();
+
+                                    duration = response.rows[0].elements[0].duration.text;
+                                    duration = duration.replace("mins", " ");
+                                    duration = parseInt(duration);
+
+                                    ridetime = document.getElementById("ridetime").value;
+
+
+
+
+                                    duration = duration + minutes;
+                                    arrTime.setTime(arrTime.getTime() + (duration * 60 * 1000));
+                                    currentDate.setHours(arrTime.getHours());
+                                    currentDate.setMinutes(arrTime.getMinutes());
+                                    currentDate.setSeconds(arrTime.getSeconds());
+                                    console.log("estimated time for arrival at dropoff" + currentDate);
+                                    arrivalDate = currentDate.toLocaleString("en-NZ", {
+                                        month: "long",
+                                        day: "numeric",
+                                        year: "numeric",
+                                        hour: "numeric",
+                                        minute: "numeric"
+                                    });
+
+                                    arrivalDate = arrivalDate.split("at");
+                                    arrivalDates = arrivalDate[0];
+                                    arrivalTime = arrivalDate[1];
+
+                                    document.getElementById("arrivaltime").innerText = arrivalTime;
+
+                                    document.getElementById("distancesCovered").innerText = response.rows[0].elements[0].distance.text;
+                                    document.getElementById("TimeCovered").innerText = response.rows[0].elements[0].duration.text;
+                                    document.getElementById("dropoffadd").innerText = drop;
+                                    document.getElementById("pickupadd").innerText = pickup;
+                                    document.getElementById("vehicleType").innerText = CarType;
+                                    document.getElementById("bookingdate").innerText = currentDates;
+                                    document.getElementById("bookingtime").innerText = currentTime;
+                                    minutesCovered = response.rows[0].elements[0].duration.value / 90;
+                                    minuteRate = minutesCovered * perMin;
+                                    distanceCovered = response.rows[0].elements[0].distance.value / 1000;
+                                    distanceRate = distanceCovered * perKM;
+
+                                    fares = baseFare + distanceRate + minuteRate;
+                                    gst = (gst / 100) * fares;
+                                    fares = gst + fares;
+                                    fares = Math.round(fares);
+
+                                    console.log(response);
+
+                                    distanceRate = distanceRate.toFixed(2);
+                                    minuteRate = minuteRate.toFixed(2);
+
+
+                                    baseFare = baseFare.toFixed(2);
+
+                                    const trafficLayer = new google.maps.TrafficLayer();
+
+                                    trafficLayer.setMap(map);
+                                });
+                              */
+            } else {
+
+            }
+
+
+
+        });
+        async function initMap() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(showPosition);
+
+
+
+            } else {
+                x.innerHTML = "Geolocation is not supported by this browser.";
+            }
+
+            function showPosition(position) {
+
+
+                var latitude = position.coords.latitude;
+                var longitude = position.coords.longitude;
+                const geocoderCurrentloc = new google.maps.Geocoder();
+
+                latlng = {
+                    lat: latitude,
+                    lng: longitude
+                };
+                geocoderCurrentloc
+                    .geocode({
+                        location: latlng
+                    })
+                    .then((response) => {
+                        if (response.results[0]) {
+                            console.log("Geocoding Current Location");
+                            document.getElementById("pac-input2").value = response.results[0].formatted_address;
+                            console.log(response);
+                        }
+                    });
+                map = new google.maps.Map(document.getElementById("map"), {
+                    center: {
+                        lat: latitude,
+                        lng: longitude
+                    },
+                    zoom: 13,
+
+                });
+
+
+                const svgMarker = {
+                    path: "M-1.547 12l6.563-6.609-1.406-1.406-5.156 5.203-2.063-2.109-1.406 1.406zM0 0q2.906 0 4.945 2.039t2.039 4.945q0 1.453-0.727 3.328t-1.758 3.516-2.039 3.070-1.711 2.273l-0.75 0.797q-0.281-0.328-0.75-0.867t-1.688-2.156-2.133-3.141-1.664-3.445-0.75-3.375q0-2.906 2.039-4.945t4.945-2.039z",
+                    fillColor: "blue",
+                    fillOpacity: 0.6,
+                    strokeWeight: 0,
+                    rotation: 0,
+                    scale: 2,
+                    anchor: new google.maps.Point(0, 20),
+                };
+
+                marker = new google.maps.Marker({
+
+                    icon: svgMarker,
+                    map: map,
+                });
+
+                const center = {
+                    lat: latitude,
+                    lng: longitude
+                };
+                console.log(center + "center");
+                const defaultBounds = {
+                    north: center.lat + 0.1,
+                    south: center.lat - 0.1,
+                    east: center.lng + 0.1,
+                    west: center.lng - 0.1,
+                };
+                console.log(defaultBounds);
+                const options = {
+                    fields: ["formatted_address", "geometry", "name"],
+                    componentRestrictions: {
+                        country: "pk",
+
+                    },
+                    bounds: defaultBounds,
+                    types: ['establishment'],
+                };
+
+                const input = document.getElementById("pac-input");
+                const autocomplete = new google.maps.places.Autocomplete(input, options);
+                const input2 = document.getElementById("pac-input2");
+
+                const autocomplete2 = new google.maps.places.Autocomplete(input2, options);
+
+
+                geocoder = new google.maps.Geocoder();
+
+
+                autocomplete2.addListener("place_changed", () => {
+
+
+
+                    const place2 = autocomplete2.getPlace();
+
+                    if (!place2.geometry || !place2.geometry.location) {
+                        // User entered the name of a Place that was not suggested and
+                        // pressed the Enter key, or the Place Details request failed.
+                        window.alert("No details available for input: '" + place.name + "'");
+                        return;
+                    }
+
+                    // If the place has a geometry, then present it on a map.
+                    if (place2.geometry.viewport) {
+
+                        pickuplat = place2.geometry.location.lat();
+                        pickuplng = place2.geometry.location.lng();
+
+                        pickuplat = pickuplat.toFixed(4);
+                        pickuplng = pickuplng.toFixed(4);
+                        console.log("pickuplat" + place2.geometry.location.lat());
+                        console.log("pickuplng" + place2.geometry.location.lng());
+                        map.fitBounds(place2.geometry.viewport);
+
+
+
+                        marker2 = new google.maps.Marker({
+
+                            label: "P",
+                            map: map,
+                            position: place2.geometry.location
+                        });
+
+
+
+
+
+
+
+
+
+
+
+
+                    } else {
+
+
+
+
+
+
+                    }
+
+
+
+
+
+                });
+
+
+
+
+
+
+
+
+
+
+                autocomplete.addListener("place_changed", () => {
+
+
+
+                    const place = autocomplete.getPlace();
+
+                    if (!place.geometry || !place.geometry.location) {
+                        // User entered the name of a Place that was not suggested and
+                        // pressed the Enter key, or the Place Details request failed.
+                        window.alert("No details available for input: '" + place.name + "'");
+                        return;
+                    }
+
+                    // If the place has a geometry, then present it on a map.
+                    if (place.geometry.viewport) {
+
+                        pickuplat = place.geometry.location.lat();
+                        pickuplng = place.geometry.location.lng();
+
+                        pickuplat = pickuplat.toFixed(4);
+                        pickuplng = pickuplng.toFixed(4);
+
+                        map.fitBounds(place.geometry.viewport);
+
+
+
+                        marker2 = new google.maps.Marker({
+
+                            label: "D",
+                            map: map,
+                            position: place.geometry.location
+                        });
+
+
+
+
+
+
+
+
+
+
+
+
+                    } else {
+
+
+
+
+
+
+                    }
+
+
+
+
+
+                });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                marker = new google.maps.Marker({
+                    draggable: true,
+                    label: "C",
+                    map: map,
+                    position: {
+                        lat: latitude,
+                        lng: longitude
+                    }
+                });
+
+
+                marker.addListener('dragend', function() {
+                    var newPosition = marker.getPosition();
+                    console.log(newPosition);
+                    var latitude = newPosition.lat();
+                    var longitude = newPosition.lng();
+                    const Changeloc = new google.maps.Geocoder();
+                    latlng = {
+                        lat: latitude,
+                        lng: longitude
+                    };
+
+                    Changeloc.geocode({
+                            location: latlng
+                        })
+                        .then((response) => {
+                            if (response.results[0]) {
+                                console.log("Geocoding Current Location");
+                                document.getElementById("pac-input2").value = response.results[0].formatted_address;
+                                console.log(response);
+                            }
+                        });
+
+
+
+
+
+
+                    console.log('Latitude:', latitude, "longitude" + longitude);
+                });
+
+
+
+
+
+
+
+                const trafficLayer = new google.maps.TrafficLayer();
+
+                trafficLayer.setMap(map);
+
+            }
+
+
+
+            function clear() {
+                marker.setMap(null);
+
+            }
+
+
+
+
+            /*
+SELECT
+ * ,ceil(
+        6371 *
+        ACOS(
+            COS(RADIANS(24.9283)) *
+            COS(RADIANS(locationlat)) *
+            COS(RADIANS(locationlong) - RADIANS(67.1111)) +
+            SIN(RADIANS(24.9283)) *
+            SIN(RADIANS(locationlat))
+        )+1
+    ) as distance from drivers ;
+                        geocoder = new google.maps.Geocoder();
+                        geocoder
+                            .geocode(center)
+                            .then((result) => {
+                                const {
+                                    results
+                                } = result;
+
+                            
+                                map.setCenter(results[0].geometry.location);
+                                marker.setPosition(results[0].geometry.location);
+                                marker.setMap(map);
+                                responseDiv.style.display = "block";
+
+                                response.innerText = JSON.stringify(result, null, 2);
+                            
+                                return results;
+                            })
+                            .catch((e) => {
+                                alert("Geocode was not successful for the following reason: " + e);
+                            });
+
+            */
+            // pressed the Enter key, or the Place Details request failed.
+
+
+
+            // If the place has a geometry, then present it on a map.
+
+
+
+
+
+
+
+
+            // The location of Uluru
+            const position = {
+                lat: 24.9283,
+                lng: 67.1112
+            };
+            // Request needed libraries.
+            //@ts-ignore
+
+            const {
+                Map
+            } = await google.maps.importLibrary("maps");
+            const {
+                AdvancedMarkerElement
+            } = await google.maps.importLibrary("marker");
+
+            // The map, centered at Uluru
+
+
+
+        }
+
+
+
+
+        initMap();
+    </script>
+
+
+</body>
+
+</html>
