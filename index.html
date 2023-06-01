@@ -149,6 +149,41 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
         </form>
     </div>
     <script>
+        function DisplayTime(time) {
+            console.log(time);
+            hours = time / 60;
+            hoursRound = parseInt(hours);
+            console.log(hoursRound);
+            hoursRounds = hoursRound * 60;
+            minutes = time - hoursRounds;
+            if (time > 60) {
+                if (minutes <= 1) {
+                    unit = " min ";
+                } else {
+                    unit = " mins ";
+                }
+                if (hoursRound <= 1) {
+                    hourunit = " hr ";
+                } else {
+                    hourunit = " hrs ";
+
+
+                }
+                TimeToDisplay = hoursRound + hourunit + minutes + unit;
+            } else {
+
+                if (minutes <= 1) {
+                    unit = " min ";
+                } else {
+                    unit = " mins ";
+                }
+                TimeToDisplay = minutes + unit;
+            }
+
+            return TimeToDisplay;
+        }
+
+
         addStopbtn = document.getElementById("addStop");
         addStopbtn.addEventListener("click", async() => {
             const options = {
@@ -283,11 +318,13 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
             car_type_detail = await responses.json();
             dataObject = car_type_detail.data;
             console.warn(dataObject);
+            console.warn(car_type_detail);
             carTypeObject = {
                 baseFare: dataObject[0].baseFare,
                 perKM: dataObject[0].perKM,
                 perMIn: dataObject[0].perMIn,
-
+                driverArrivalKMCharge: dataObject[0].driverArrivalKMCharge,
+                driverArrivalMinCharge: dataObject[0].driverArrivalMinCharge
 
             }
             return carTypeObject;
@@ -323,7 +360,10 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
 
         }
 
+        async function availableCar(map) {
+            console.log(map.getCenter());
 
+        }
         fareEstimatebtn = document.getElementById("fareEstimate");
         fareEstimatebtn.addEventListener("click", async() => {
             currentDate = new Date();
@@ -390,7 +430,7 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
                     lng: longitude
                 },
                 zoom: 13,
-                mapTypeControl: false,
+
             });
 
 
@@ -596,10 +636,12 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
                           durationintraffic = durationintraffic.replace("mins", " ");
                           durationintraffic = parseInt(durationintraffic);*/
                         console.log("directionApidistance:" + distance);
-                        durationintraffic = 0;
 
+                        durationintraffic = response.routes[0].legs[0].duration_in_traffic.value / 60;
+                        durationintraffic = parseInt(Math.round(durationintraffic));
 
-                        duration = parseInt(duration);
+                        duration = Math.round(duration);
+
                         duration = duration + durationintraffic;
 
                         console.log("directionApiduration:" + response.routes[0].legs[0].duration.value);
@@ -630,7 +672,7 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
                         });
 
                         document.getElementById("distancesCovered").innerText = response.routes[0].legs[0].distance.text;
-                        document.getElementById("TimeCovered").innerText = duration + " mins";
+                        document.getElementById("TimeCovered").innerText = DisplayTime(duration);
                         arrivalDate = arrivalDate.split("at");
                         arrivalDates = arrivalDate[0];
                         arrivalTime = arrivalDate[1];
@@ -770,7 +812,7 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
 
                         captainArrivalCharge = parseFloat(driverArrivalDistanceRate) + parseFloat(driverArrivalDurationRate);
                         captainArrivalCharge = parseFloat(captainArrivalCharge.toFixed(2));
-                        if (captainArrivalCharge > 200) {
+                        if (captainArrivalCharge > 400) {
                             captainArrivalCharge = parseFloat(200);
                         }
 
@@ -802,8 +844,9 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
                         var arrivalTime = new Date();
 
                         // Add 1 hour and 10 minutes
-
-                        arrivalTime.setMinutes(arrivalTime.getMinutes() + timeToArrival + parseInt(driverArrivalDuration));
+                        totalTime = timeToArrival + parseFloat(driverArrivalDuration);
+                        DisplayTime(totalTime);
+                        arrivalTime.setMinutes(arrivalTime.getMinutes() + timeToArrival);
                         arrivalTime = arrivalTime.toLocaleString("en-NZ", {
 
                             hour: "numeric",
@@ -1039,7 +1082,7 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
                     zoom: 13,
 
                 });
-
+                availableCar(map);
 
                 const svgMarker = {
                     path: "M-1.547 12l6.563-6.609-1.406-1.406-5.156 5.203-2.063-2.109-1.406 1.406zM0 0q2.906 0 4.945 2.039t2.039 4.945q0 1.453-0.727 3.328t-1.758 3.516-2.039 3.070-1.711 2.273l-0.75 0.797q-0.281-0.328-0.75-0.867t-1.688-2.156-2.133-3.141-1.664-3.445-0.75-3.375q0-2.906 2.039-4.945t4.945-2.039z",
@@ -1185,7 +1228,7 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
 
 
                         marker2 = new google.maps.Marker({
-
+                            draggable: true,
                             label: "D",
                             map: map,
                             position: place.geometry.location
@@ -1193,7 +1236,35 @@ AIzaSyDAL_aYaW45s1BchRhIHYr_xHbXnPRj-ps
 
 
 
+                        marker2.addListener('dragend', function() {
+                            var newPositions = marker2.getPosition();
+                            console.log(newPositions);
+                            var latitudeDrop = newPositions.lat();
+                            var longitudeDrop = newPositions.lng();
+                            const ChangelocDrop = new google.maps.Geocoder();
+                            latlng = {
+                                lat: latitudeDrop,
+                                lng: longitudeDrop
+                            };
 
+                            ChangelocDrop.geocode({
+                                    location: latlng
+                                })
+                                .then((response) => {
+                                    if (response.results[0]) {
+                                        console.log("Geocoding Current Location");
+                                        document.getElementById("pac-input").value = response.results[0].formatted_address;
+                                        console.log(response);
+                                    }
+                                });
+
+
+
+
+
+
+                            console.log('Latitude:', latitude, "longitude" + longitude);
+                        });
 
 
 

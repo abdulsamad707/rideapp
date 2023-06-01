@@ -134,7 +134,7 @@ app.get("/cartype/:typecar?", async(req, res) => {
 
 
 
-        return res.json({ "msg": "Car type found", "data": result }).status(200);
+        res.json({ "msg": "Car type found", "data": result }).status(200);
 
 
     });
